@@ -471,7 +471,7 @@ namespace RemoteBotConnector
                     (radioButton_manual.Checked && (!procesInfo.MainWindowTitle.Contains("Connected") || procesInfo.MainWindowTitle.Contains("N/A"))) ||
                     (checkBox_ignoreState.Checked)))
                 {
-                    listBox_botClients.Items.Add(new BotList("phBot", procesInfo.Id, procesInfo, getFolder(procesInfo.Id)));      
+                    listBox_botClients.Items.Add(new BotList(procesInfo.MainWindowTitle, procesInfo.Id, procesInfo, getFolder(procesInfo.Id)));      
                 }
             }
         }

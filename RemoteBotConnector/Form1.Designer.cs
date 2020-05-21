@@ -110,6 +110,7 @@
             // 
             // button_refresh
             // 
+            this.button_refresh.Enabled = false;
             this.button_refresh.Location = new System.Drawing.Point(99, 304);
             this.button_refresh.Name = "button_refresh";
             this.button_refresh.Size = new System.Drawing.Size(341, 37);

@@ -453,7 +453,6 @@ namespace RemoteBotConnector
                 e.Cancel = true;
             if (result == DialogResult.Yes)
             {
-                Process.GetCurrentProcess().Close();
                 System.Environment.Exit(0);
             }
         }
@@ -516,6 +515,8 @@ namespace RemoteBotConnector
                 listBox_botClients.Enabled = false;
                 checkBox_ignoreState.Checked = false;
                 checkBox_ignoreState.Enabled = false;
+                listBox_botClients.Items.Clear();
+                button_refresh.Enabled = false;
             }
         }
 
@@ -525,6 +526,7 @@ namespace RemoteBotConnector
             {
                 listBox_botClients.Enabled = true;
                 checkBox_ignoreState.Enabled = true;
+                button_refresh.Enabled = true;
             }
         }
 

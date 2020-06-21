@@ -25,6 +25,12 @@ namespace Agents
         private bool local = true;
         private bool remote = true;
         private bool _a103Sent = false;
+        private bool clientlessToClient = false;
+        private bool m_ClientWaitingForData = false;
+        private bool m_ClientWatingForFinish = false;
+        private bool currentSwitchActive = true;
+        private readonly object login = new object();
+        private bool agentIsConnected = false;
 
         private Thread localThread, remoteThread;
 
@@ -42,7 +48,8 @@ namespace Agents
                 this.ag_local_client.NoDelay = true;
                 this.ag_remote_client = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 this.ip = IPAddress.Parse(((IPEndPoint)this.ag_local_client.RemoteEndPoint).Address.ToString()).ToString();
-                Log.LogMsg("Socket Success IP:" + this.ip);
+                this.clientlessToClient = Program.main.checkBox_clientlessToClient.Checked;
+                Log.LogMsg("Agent Socket Success IP:" + this.ip);
                 localThread = new Thread(new ThreadStart(AgentLocalThread));
                 localThread.Start();
             }
@@ -98,7 +105,6 @@ namespace Agents
                         {
                             if (socketError != SocketError.WouldBlock)
                             {
-
                                 this.Disconnect(false);
                                 break;
                             }
@@ -107,7 +113,7 @@ namespace Agents
                         {
                             if (!this.ag_remote_client.Connected || this.ag_remote_recv_buffer.Size <= 0)
                             {
-                                this.Disconnect(true); 
+                                this.Disconnect(true);
                                 break;
                             }
                             this.ag_remote_security.Recv(this.ag_remote_recv_buffer);
@@ -134,9 +140,63 @@ namespace Agents
                         foreach (Packet packet in this.ag_remote_recv_packets)
                         {
                             byte[] bytes = packet.GetBytes();
+
+                            #region FakeClient
+                            if (this.clientlessToClient)
+                            {
+                                if (packet.Opcode == 0x30D2)
+                                {
+                                    while (this.m_ClientWaitingForData == false && this.m_ClientWatingForFinish == false)
+                                    {
+                                        System.Threading.Thread.Sleep(1);
+                                    }
+
+                                    //Client is ready
+                                    if (this.m_ClientWaitingForData)
+                                    {
+                                        this.currentSwitchActive = true;
+                                        //Accept Teleport
+                                        Packet respone = new Packet(0x34B6);
+                                        this.ag_remote_security.Send(respone);
+
+                                        this.m_ClientWatingForFinish = true;
+                                        this.m_ClientWaitingForData = false;
+
+                                        //!!! CrossThreading!!!
+                                        Program.main.MainLog("Waiting for Teleport to finish");
+                                    }
+                                }
+
+                                //Incoming CharacterData
+                                if (packet.Opcode == 0x34A5)
+                                {
+                                    if (this.m_ClientWatingForFinish)
+                                    {
+                                        this.clientlessToClient = false;
+                                        this.m_ClientWatingForFinish = false;
+
+                                        //!!! CrossThreading!!!
+                                        Program.main.MainLog("Sucessfully switched");
+                                    }
+                                }
+                            }
+                            #endregion
+
                             if (packet.Opcode != 0x5000 && packet.Opcode != 0x9000)
                             {
-                                this.ag_local_security.Send(packet);
+                                if(packet.Opcode == 0xA103)
+                                {
+                                    lock (this.login)
+                                    {
+                                        if (!this._a103Sent)
+                                            this._a103Sent = true;
+                                        else
+                                            continue;
+                                    }
+                                }
+
+                                if(!this.clientlessToClient)
+                                    this.ag_local_security.Send(packet);
                             }
                             
                         }
@@ -151,26 +211,19 @@ namespace Agents
                             foreach (KeyValuePair<TransferBuffer, Packet> current2 in this.ag_remote_send_buffers)
                             {
                                 Packet packet = current2.Value;
-                                TransferBuffer key = current2.Key;
-                                while (key.Offset != key.Size)
-                                {
-                                    this.ag_remote_client.Blocking = true;
-                                    int num6 = this.ag_remote_client.Send(key.Buffer, key.Offset, key.Size - key.Offset, SocketFlags.None);
-                                    this.ag_remote_client.Blocking = false;
-                                    key.Offset += num6;
-                                    Thread.Sleep(1);
-                                }
-
                                 byte[] bytes = packet.GetBytes();
 
-                                //C->S
-
-                                if(!this._a103Sent && packet.Opcode == 0x6103)
+                                if(!this.clientlessToClient || this.currentSwitchActive)
                                 {
-                                    this._a103Sent = true;
-                                    Packet p = new Packet(0xA103, true);
-                                    p.WriteUInt8(1);
-                                    this.ag_local_security.Send(p);
+                                    TransferBuffer key = current2.Key;
+                                    while (key.Offset != key.Size)
+                                    {
+                                        this.ag_remote_client.Blocking = true;
+                                        int num6 = this.ag_remote_client.Send(key.Buffer, key.Offset, key.Size - key.Offset, SocketFlags.None);
+                                        this.ag_remote_client.Blocking = false;
+                                        key.Offset += num6;
+                                        Thread.Sleep(1);
+                                    }
                                 }
                             }
                         }
@@ -237,28 +290,104 @@ namespace Agents
                             byte[] bytes = packet.GetBytes();
                             int pLength = bytes.Length;
 
+                            if (this.clientlessToClient && packet.Opcode == 0x7007)
+                            {
+                                byte type = packet.ReadUInt8();
+                                if (type == 0x02)
+                                {
+                                    Packet responseEndCS = new Packet(0xB001);
+                                    responseEndCS.WriteUInt8(0x01);
+                                    this.ag_local_security.Send(responseEndCS);
+
+                                    this.m_ClientWaitingForData = true;
+                                    this.currentSwitchActive = false;
+
+                                    Program.main.MainLog("Please use a ReturnScroll to finish Clientless->Client");
+                                }
+                            }
+
                             if (packet.Opcode == 0x5000 || packet.Opcode == 0x9000 || packet.Opcode == 0x2001)
                             {
                                 if (!this.ag_remote_client.Connected)
                                 {
-                                    string ip = "127.0.0.1";
-                                    int port = Program.main.portSave;
-                                    if (port != 0)
+                                    lock (this.login)
                                     {
-                                        this.ag_remote_client.Connect(ip, port);
-                                        this.ag_remote_client.Blocking = false;
-                                        this.ag_remote_client.NoDelay = true;
-                                        remoteThread = new Thread(new ThreadStart(AgentRemoteThread));
-                                        remoteThread.Start();
-                                    }
-                                    else
-                                    {
-                                        Program.main.MainLog("Not free BotPort found - Agent");
+                                        if (!this.agentIsConnected)
+                                        {
+                                            string ip = "127.0.0.1";
+                                            int port = Program.main.portSave;
+
+                                            if (this.clientlessToClient || Program.main.mBot)
+                                                port = Program.main.getFreeBotPort(true);
+
+                                            if (Program.main.checkBox_manualPortOverride.Checked)
+                                                port = Convert.ToInt32(Program.main.textBox_manualPortOverride.Text);
+
+                                            if (port != 0)
+                                            {
+                                                this.agentIsConnected = true;
+                                                this.ag_remote_client.Connect(ip, port);
+                                                this.ag_remote_client.Blocking = false;
+                                                this.ag_remote_client.NoDelay = true;
+                                                remoteThread = new Thread(new ThreadStart(AgentRemoteThread));
+                                                remoteThread.Start();
+                                            }
+                                            else
+                                            {
+                                                Program.main.MainLog("Not free BotPort found - Agent");
+                                            }
+                                        }
                                     }
                                 }
+
+                                if (packet.Opcode == 0x2001 && this.clientlessToClient)
+                                {
+                                    Packet response = new Packet(0x2001);
+                                    response.WriteAscii("AgentServer");
+                                    response.WriteUInt8(0);
+                                    response.Lock();
+                                    this.ag_local_security.Send(response);
+
+                                    response = new Packet(0x2005, false, true);
+                                    response.WriteUInt8(0x01);
+                                    response.WriteUInt8(0x00);
+                                    response.WriteUInt8(0x01);
+                                    response.WriteUInt8(0xBA);
+                                    response.WriteUInt8(0x02);
+                                    response.WriteUInt8(0x05);
+                                    response.WriteUInt8(0x00);
+                                    response.WriteUInt8(0x00);
+                                    response.WriteUInt8(0x00);
+                                    response.WriteUInt8(0x02);
+                                    response.Lock();
+                                    this.ag_local_security.Send(response);
+
+                                    response = new Packet(0x6005, false, true);
+                                    response.WriteUInt8(0x03);
+                                    response.WriteUInt8(0x00);
+                                    response.WriteUInt8(0x02);
+                                    response.WriteUInt8(0x00);
+                                    response.WriteUInt8(0x02);
+                                    response.Lock();
+                                    this.ag_local_security.Send(response);
+                                }
                             }
-                            else
+                            else if(!this.clientlessToClient || this.currentSwitchActive)
                             {
+                                if (packet.Opcode == 0x6103)
+                                {
+                                    lock (this.login)
+                                    {
+                                        if (!this._a103Sent)
+                                        {
+                                            this._a103Sent = true;
+                                            Packet p = new Packet(0xA103, true);
+                                            p.WriteUInt8(1);
+                                            this.ag_local_security.Send(p);
+                                        }
+                                    }
+                                }
+
                                 this.ag_remote_security.Send(packet);
                             }
                             #endregion
@@ -271,13 +400,17 @@ namespace Agents
                         foreach (KeyValuePair<TransferBuffer, Packet> current in this.ag_local_send_buffers)
                         {
                             Packet packet = current.Value;
-                            TransferBuffer key = current.Key;
-                            while (key.Offset != key.Size)
+
+                            if (!this.clientlessToClient || (this.currentSwitchActive || packet.Opcode == 0xB001))
                             {
-                                this.ag_local_client.Blocking = true;
-                                int num4 = this.ag_local_client.Send(key.Buffer, key.Offset, key.Size - key.Offset, SocketFlags.None);
-                                this.ag_local_client.Blocking = false;
-                                key.Offset += num4;
+                                TransferBuffer key = current.Key;
+                                while (key.Offset != key.Size)
+                                {
+                                    this.ag_local_client.Blocking = true;
+                                    int num4 = this.ag_local_client.Send(key.Buffer, key.Offset, key.Size - key.Offset, SocketFlags.None);
+                                    this.ag_local_client.Blocking = false;
+                                    key.Offset += num4;
+                                }
                             }
                         }
                     }

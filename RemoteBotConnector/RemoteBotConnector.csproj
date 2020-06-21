@@ -41,6 +41,9 @@
   <PropertyGroup>
     <ApplicationIcon>dathublrs.ico</ApplicationIcon>
   </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -66,6 +69,7 @@
     <Compile Include="Gateway\Clients.cs" />
     <Compile Include="Gateway\Log.cs" />
     <Compile Include="Gateway\Gateway.cs" />
+    <Compile Include="IniFile.cs" />
     <Compile Include="Packet\Blowfish.cs" />
     <Compile Include="Packet\Packet.cs" />
     <Compile Include="Packet\PacketReader.cs" />
@@ -88,6 +92,7 @@
       <DependentUpon>Resources.resx</DependentUpon>
       <DesignTime>True</DesignTime>
     </Compile>
+    <None Include="app.manifest" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>

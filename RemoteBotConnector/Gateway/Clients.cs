@@ -23,6 +23,7 @@ namespace Gateways
 		private string ip = "";
 		private bool local = true;
 		private bool remote = true;
+        private bool clientlessToClient = false;
 		public Clients(Socket tSocket)
 		{
             try
@@ -37,6 +38,7 @@ namespace Gateways
                 this.gw_local_client.NoDelay = true;
                 this.gw_remote_client = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 this.ip = IPAddress.Parse(((IPEndPoint)this.gw_local_client.RemoteEndPoint).Address.ToString()).ToString();
+                this.clientlessToClient = Program.main.checkBox_clientlessToClient.Checked;
                 Log.LogMsg("IP Connected : " + this.ip);
                 Thread thread = new Thread(new ThreadStart(this.GatewayLocalThread));
                 thread.Start();
@@ -47,7 +49,7 @@ namespace Gateways
                 Log.LogMsg(e.ToString());
             }
 		}
-        Dictionary<string, bool> SecurityForChar = new Dictionary<string, bool>();
+
 		private void GatewayRemoteThread()
 		{
 			try
@@ -99,17 +101,10 @@ namespace Gateways
                                         packet2.WriteUInt32(value);
                                         packet2.WriteAscii(Gateway.realIP);
                                         packet2.WriteUInt16(Gateway.fakeAgentPort);
-                                        this.gw_local_security.Send(packet2);
-                                        
-                                        
+                                        this.gw_local_security.Send(packet2); 
                                     }
                                 }
-                                if(packet.Opcode == 0xA103)
-                                {
-                                    Log.LogMsg("Connected");
-                                }
-								this.gw_local_security.Send(packet);
-                                
+								this.gw_local_security.Send(packet); 
 							}
 						}
 					}
@@ -136,11 +131,10 @@ namespace Gateways
 			}
 			catch (Exception ex)
 			{
-                //Log.LogMsg("RemoteThread error, disconnecting " + this.ip + Environment.NewLine + "Error Message: " + ex.Message + Environment.NewLine + "Error Source: " + ex.Source);
 				this.CleanClient();
 			}
 		}
-        bool receivedSecurity;
+
 		private void GatewayLocalThread()
 		{
 			try
@@ -173,9 +167,108 @@ namespace Gateways
 						foreach (Packet packet in this.gw_local_recv_packets)
 						{
 							byte[] bytes = packet.GetBytes();
-							if (packet.Opcode == 0x5000 || packet.Opcode == 0x9000 || packet.Opcode == 0x2001)
+
+                            if(this.clientlessToClient)
+                            {
+                                #region Fake Client
+
+                                #region 0x2001
+                                if (packet.Opcode == 0x2001)
+                                {
+                                    Packet response = new Packet(0x2001);
+                                    response.WriteAscii("GatewayServer");
+                                    response.WriteUInt8(0);
+                                    response.Lock();
+                                    this.gw_local_security.Send(response);
+
+                                    response = new Packet(0x2005, false, true);
+                                    response.WriteUInt8(0x01);
+                                    response.WriteUInt8(0x00);
+                                    response.WriteUInt8(0x01);
+                                    response.WriteUInt8(0xBA);
+                                    response.WriteUInt8(0x02);
+                                    response.WriteUInt8(0x05);
+                                    response.WriteUInt8(0x00);
+                                    response.WriteUInt8(0x00);
+                                    response.WriteUInt8(0x00);
+                                    response.WriteUInt8(0x02);
+                                    response.Lock();
+                                    gw_local_security.Send(response);
+
+                                    response = new Packet(0x6005, false, true);
+                                    response.WriteUInt8(0x03);
+                                    response.WriteUInt8(0x00);
+                                    response.WriteUInt8(0x02);
+                                    response.WriteUInt8(0x00);
+                                    response.WriteUInt8(0x02);
+                                    response.Lock();
+                                    gw_local_security.Send(response);
+                                }
+                                #endregion
+
+                                #region 0x6100
+                                if (packet.Opcode == 0x6100)
+                                {
+                                    Packet response = new Packet(0xA100, false, true);
+                                    response.WriteUInt8(0x01);
+                                    response.Lock();
+                                    gw_local_security.Send(response);
+                                }
+                                #endregion
+
+                                #region 0x6101
+
+                                if (packet.Opcode == 0x6101)
+                                {
+                                    Packet response = new Packet(0xA102);
+                                    response.WriteUInt8(0x01); //Sucess
+                                    response.WriteUInt32(uint.MaxValue); //SessionID
+                                    response.WriteAscii(Gateway.realIP); //AgentIP
+                                    response.WriteUInt16(Gateway.fakeAgentPort);
+                                    response.Lock();
+
+                                    gw_local_security.Send(response);
+                                }
+
+                                #endregion
+
+                                #region 0x6103
+
+                                if (packet.Opcode == 0x6103)
+                                {
+                                    Packet response = new Packet(0xA103);
+                                    response.WriteUInt8(0x01); //Sucess
+                                    response.Lock();
+
+                                    gw_local_security.Send(response);
+                                }
+
+                                #endregion
+
+                                #region 0x7007
+
+                                if (packet.Opcode == 0x7007)
+                                {
+                                    byte type = packet.ReadUInt8();
+                                    if (type == 0x02)
+                                    {
+                                        Packet responseEndCS = new Packet(0xB001);
+                                        responseEndCS.WriteUInt8(0x01);
+
+                                        Packet responseInitLoad = new Packet(0x34A5);
+
+                                        gw_local_security.Send(responseEndCS);
+                                        gw_local_security.Send(responseInitLoad);
+                                    }
+                                }
+                                #endregion
+
+                                #endregion
+                            }
+
+                            if (packet.Opcode == 0x5000 || packet.Opcode == 0x9000 || packet.Opcode == 0x2001)
 							{
-                                if (!this.gw_remote_client.Connected)
+                                if (!this.gw_remote_client.Connected && !this.clientlessToClient)
                                 {
                                     string ip = "127.0.0.1";
                                     int port = Program.main.getFreeBotPort();
@@ -224,7 +317,6 @@ namespace Gateways
 			catch (Exception ex)
 			{
                 Log.LogMsg("LocalThread error, disconnecting " + this.ip);
-                //Log.LogMsg(ex.ToString());
 				this.CleanClient();
 			}
 		}

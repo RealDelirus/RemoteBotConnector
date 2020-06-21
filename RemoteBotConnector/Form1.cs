@@ -18,6 +18,7 @@ namespace RemoteBotConnector
     {
 
         public int portSave = 0;
+        public bool mBot = false;
         public  Form1()
         {
             InitializeComponent();
@@ -37,7 +38,7 @@ namespace RemoteBotConnector
             Agent.StartAgent(); 
         }
 
-        public int getFreeBotPort()
+        public int getFreeBotPort(bool first = false)
         {
             if (checkBox_manualPortOverride.Checked && textBox_manualPortOverride.Text != "")
             {
@@ -66,7 +67,7 @@ namespace RemoteBotConnector
 
             foreach (Process procesInfo in Process.GetProcesses())
             {
-                if (procesInfo.ProcessName == "phBot" && procesInfo.MainWindowTitle != "")
+                if ((procesInfo.ProcessName == "phBot"  || procesInfo.ProcessName.Contains("mBot")) && procesInfo.MainWindowTitle != "")
                 {
                     int PID = procesInfo.Id;
                     if (radioButton_autoSelect.Checked || manualPID == 0 || manualPID == PID)
@@ -87,6 +88,18 @@ namespace RemoteBotConnector
                                                 x++;
                                                 port = 0;
                                                 int.TryParse(tcpRow.LocalEndPoint.ToString().Replace("127.0.0.1:", ""), out port);
+                                                mBot = false;
+                                            }
+                                        }
+                                        else if (process.ProcessName.Contains("mBot") && process.Id == PID)
+                                        {
+                                            if ((tcpRow.LocalEndPoint.ToString().Contains("0.0.0.0")) && (!process.MainWindowTitle.Contains("[") || process.MainWindowTitle.Contains("DC") || (checkBox_ignoreState.Checked && !radioButton_autoSelect.Checked)))
+                                            {
+                                                x++;
+                                                port = 0;
+                                                int.TryParse(tcpRow.LocalEndPoint.ToString().Replace("0.0.0.0:", ""), out port);
+                                                mBot = true;
+                                                if (!first) return port;
                                             }
                                         }
                                     }
@@ -465,10 +478,12 @@ namespace RemoteBotConnector
 
             foreach (Process procesInfo in Process.GetProcesses())
             {
-                if (procesInfo.ProcessName == "phBot" && procesInfo.MainWindowTitle != "" && 
+                if ((procesInfo.ProcessName == "phBot" && procesInfo.MainWindowTitle != "" && 
                     ((radioButton_autoSelect.Checked && (!procesInfo.MainWindowTitle.Contains("Connected") || procesInfo.MainWindowTitle.Contains("N/A"))) ||
                     (radioButton_manual.Checked && (!procesInfo.MainWindowTitle.Contains("Connected") || procesInfo.MainWindowTitle.Contains("N/A"))) ||
-                    (checkBox_ignoreState.Checked)))
+                    (checkBox_ignoreState.Checked))) ||
+                    (procesInfo.ProcessName.Contains("mBot") && procesInfo.MainWindowTitle != "" && ((!procesInfo.MainWindowTitle.Contains("[") || procesInfo.MainWindowTitle.Contains("DC")) || checkBox_ignoreState.Checked))
+                    )
                 {
                     listBox_botClients.Items.Add(new BotList(procesInfo.MainWindowTitle, procesInfo.Id, procesInfo, getFolder(procesInfo.Id)));      
                 }
@@ -477,32 +492,44 @@ namespace RemoteBotConnector
 
         private string getFolder(int PID)
         {
-            if (File.Exists(Environment.CurrentDirectory + "\\handle.exe"))
-            {
-                try
-                {
-                    Process process = new Process();
-                    process.StartInfo.FileName = Environment.CurrentDirectory + "\\handle.exe";
-                    process.StartInfo.Arguments = "-p " + PID.ToString(); // Note the /c command (*)
-                    process.StartInfo.UseShellExecute = false;
-                    process.StartInfo.CreateNoWindow = true;
-                    process.StartInfo.RedirectStandardOutput = true;
-                    process.StartInfo.RedirectStandardError = true;
-                    process.Start();
-                    //* Read the output (or the error)
-                    string allhandles = process.StandardOutput.ReadToEnd();
+            Process p = Process.GetProcessById(PID);
 
-                    string[] lines = allhandles.Split(new[] { '\r', '\n' });
-                    foreach (string s in lines)
+            if (p.ProcessName == "phBot")
+            {
+                if (File.Exists(Environment.CurrentDirectory + "\\handle.exe"))
+                {
+                    try
                     {
-                        if (s.Contains("Media.pk2"))
-                            return (s.Substring(0, s.IndexOf("Media.pk2") - 1)).Substring(s.IndexOf("\\") - 2);
+                        Process process = new Process();
+                        process.StartInfo.FileName = Environment.CurrentDirectory + "\\handle.exe";
+                        process.StartInfo.Arguments = "-p " + PID.ToString(); // Note the /c command (*)
+                        process.StartInfo.UseShellExecute = false;
+                        process.StartInfo.CreateNoWindow = true;
+                        process.StartInfo.RedirectStandardOutput = true;
+                        process.StartInfo.RedirectStandardError = true;
+                        process.Start();
+                        //* Read the output (or the error)
+                        string allhandles = process.StandardOutput.ReadToEnd();
+
+                        string[] lines = allhandles.Split(new[] { '\r', '\n' });
+                        foreach (string s in lines)
+                        {
+                            if (s.Contains("Media.pk2"))
+                                return (s.Substring(0, s.IndexOf("Media.pk2") - 1)).Substring(s.IndexOf("\\") - 2);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        MainLog("Handle receive error. Does handle.exe exists? - Error " + ex.ToString());
                     }
                 }
-                catch (Exception ex)
-                {
-                    MainLog("Handle receive error. Does handle.exe exists? - Error " + ex.ToString());
-                }
+
+            }
+            else if(p.ProcessName.Contains("mBot"))
+            {
+                string dir = p.MainModule.FileName.Replace(p.MainModule.ModuleName,"");
+                IniFile confFile = new IniFile(dir + "config.ini");
+                return confFile.IniReadValue("loader","srodir");
             }
 
             return ""; 
@@ -515,6 +542,8 @@ namespace RemoteBotConnector
                 listBox_botClients.Enabled = false;
                 checkBox_ignoreState.Checked = false;
                 checkBox_ignoreState.Enabled = false;
+                checkBox_clientlessToClient.Enabled = false;
+                checkBox_clientlessToClient.Checked = false;
                 listBox_botClients.Items.Clear();
                 button_refresh.Enabled = false;
             }
@@ -536,6 +565,17 @@ namespace RemoteBotConnector
                 textBox_manualPortOverride.Enabled = true;
             else
                 textBox_manualPortOverride.Enabled = false;
+        }
+
+        private void checkBox_ignoreState_CheckedChanged(object sender, EventArgs e)
+        {
+            if ((sender as CheckBox).Checked)
+                checkBox_clientlessToClient.Enabled = true;
+            else
+            {
+                checkBox_clientlessToClient.Enabled = false;
+                checkBox_clientlessToClient.Checked = false;
+            }
         }
     }
 

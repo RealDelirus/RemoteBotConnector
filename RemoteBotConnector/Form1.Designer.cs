@@ -31,6 +31,7 @@
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
             this.rtb_log = new System.Windows.Forms.RichTextBox();
             this.groupBox_connection = new System.Windows.Forms.GroupBox();
+            this.checkBox_clientlessToClient = new System.Windows.Forms.CheckBox();
             this.groupBox_manualPortOverride = new System.Windows.Forms.GroupBox();
             this.textBox_manualPortOverride = new System.Windows.Forms.TextBox();
             this.checkBox_manualPortOverride = new System.Windows.Forms.CheckBox();
@@ -48,12 +49,13 @@
             this.rtb_log.Location = new System.Drawing.Point(455, 12);
             this.rtb_log.Name = "rtb_log";
             this.rtb_log.ReadOnly = true;
-            this.rtb_log.Size = new System.Drawing.Size(407, 347);
+            this.rtb_log.Size = new System.Drawing.Size(407, 359);
             this.rtb_log.TabIndex = 0;
             this.rtb_log.Text = "";
             // 
             // groupBox_connection
             // 
+            this.groupBox_connection.Controls.Add(this.checkBox_clientlessToClient);
             this.groupBox_connection.Controls.Add(this.groupBox_manualPortOverride);
             this.groupBox_connection.Controls.Add(this.checkBox_ignoreState);
             this.groupBox_connection.Controls.Add(this.button_refresh);
@@ -62,10 +64,21 @@
             this.groupBox_connection.Controls.Add(this.radioButton_autoSelect);
             this.groupBox_connection.Location = new System.Drawing.Point(3, 12);
             this.groupBox_connection.Name = "groupBox_connection";
-            this.groupBox_connection.Size = new System.Drawing.Size(446, 347);
+            this.groupBox_connection.Size = new System.Drawing.Size(446, 359);
             this.groupBox_connection.TabIndex = 1;
             this.groupBox_connection.TabStop = false;
             this.groupBox_connection.Text = "Connection";
+            // 
+            // checkBox_clientlessToClient
+            // 
+            this.checkBox_clientlessToClient.AutoSize = true;
+            this.checkBox_clientlessToClient.Enabled = false;
+            this.checkBox_clientlessToClient.Location = new System.Drawing.Point(6, 327);
+            this.checkBox_clientlessToClient.Name = "checkBox_clientlessToClient";
+            this.checkBox_clientlessToClient.Size = new System.Drawing.Size(111, 30);
+            this.checkBox_clientlessToClient.TabIndex = 6;
+            this.checkBox_clientlessToClient.Text = "Clientless -> Client\r\n(phBot only)";
+            this.checkBox_clientlessToClient.UseVisualStyleBackColor = true;
             // 
             // groupBox_manualPortOverride
             // 
@@ -101,19 +114,20 @@
             // 
             this.checkBox_ignoreState.AutoSize = true;
             this.checkBox_ignoreState.Enabled = false;
-            this.checkBox_ignoreState.Location = new System.Drawing.Point(6, 315);
+            this.checkBox_ignoreState.Location = new System.Drawing.Point(6, 307);
             this.checkBox_ignoreState.Name = "checkBox_ignoreState";
             this.checkBox_ignoreState.Size = new System.Drawing.Size(84, 17);
             this.checkBox_ignoreState.TabIndex = 4;
             this.checkBox_ignoreState.Text = "Ignore State";
             this.checkBox_ignoreState.UseVisualStyleBackColor = true;
+            this.checkBox_ignoreState.CheckedChanged += new System.EventHandler(this.checkBox_ignoreState_CheckedChanged);
             // 
             // button_refresh
             // 
             this.button_refresh.Enabled = false;
-            this.button_refresh.Location = new System.Drawing.Point(99, 304);
+            this.button_refresh.Location = new System.Drawing.Point(123, 304);
             this.button_refresh.Name = "button_refresh";
-            this.button_refresh.Size = new System.Drawing.Size(341, 37);
+            this.button_refresh.Size = new System.Drawing.Size(317, 50);
             this.button_refresh.TabIndex = 3;
             this.button_refresh.Text = "Refresh";
             this.button_refresh.UseVisualStyleBackColor = true;
@@ -156,7 +170,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(874, 365);
+            this.ClientSize = new System.Drawing.Size(874, 377);
             this.Controls.Add(this.groupBox_connection);
             this.Controls.Add(this.rtb_log);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
@@ -164,7 +178,7 @@
             this.MaximizeBox = false;
             this.Name = "Form1";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text = "RemoteBotConnector by Delirus";
+            this.Text = "RemoteBotConnector v2 by Delirus";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.Form1_FormClosing);
             this.Load += new System.EventHandler(this.Form1_Load);
             this.groupBox_connection.ResumeLayout(false);
@@ -185,8 +199,9 @@
         private System.Windows.Forms.RadioButton radioButton_autoSelect;
         private System.Windows.Forms.CheckBox checkBox_ignoreState;
         private System.Windows.Forms.GroupBox groupBox_manualPortOverride;
-        private System.Windows.Forms.TextBox textBox_manualPortOverride;
-        private System.Windows.Forms.CheckBox checkBox_manualPortOverride;
+        public System.Windows.Forms.CheckBox checkBox_clientlessToClient;
+        public System.Windows.Forms.TextBox textBox_manualPortOverride;
+        public System.Windows.Forms.CheckBox checkBox_manualPortOverride;
     }
 }
 

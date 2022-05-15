@@ -24,6 +24,7 @@ namespace Gateways
 		private bool local = true;
 		private bool remote = true;
         private bool clientlessToClient = false;
+		private Utility.SilkroadLocale locale = Utility.SilkroadLocale.VSRO;
 		public Clients(Socket tSocket)
 		{
             try
@@ -82,28 +83,59 @@ namespace Gateways
 						foreach (Packet packet in this.gw_remote_recv_packets)
 						{
 							byte[] bytes = packet.GetBytes();
-                            
+							//Log.LogMsg("GW [S->C] " + packet.Opcode.ToString("X4") + " " + bytes.Length + " " + packet.Encrypted.ToString() + Environment.NewLine + Utility.HexDump(bytes) + Environment.NewLine);
+
 							if (packet.Opcode != 0x5000 && packet.Opcode != 0x9000)
 							{
-                                if (packet.Opcode == 0xA102)
-                                {   
-                                    byte b = packet.ReadUInt8();
-                                    if (b == 1)
-                                    {
-                                        
-                                        uint value = packet.ReadUInt32();
-                                        string text = packet.ReadAscii();
-                                        uint port = packet.ReadUInt16();
+								switch (locale)
+								{
+									case Utility.SilkroadLocale.VSRO:
+										if (packet.Opcode == 0xA102)
+										{
+											byte b = packet.ReadUInt8();
+											if (b == 1)
+											{
+												uint value = packet.ReadUInt32();
+												string text = packet.ReadAscii();
+												uint port = packet.ReadUInt16();
 
-                                        Log.LogMsg("Redirect Client!");
-                                        Packet packet2 = new Packet(0xA102, true);
-                                        packet2.WriteUInt8(b);
-                                        packet2.WriteUInt32(value);
-                                        packet2.WriteAscii(Gateway.realIP);
-                                        packet2.WriteUInt16(Gateway.fakeAgentPort);
-                                        this.gw_local_security.Send(packet2); 
-                                    }
-                                }
+												Log.LogMsg("Redirect Client!");
+												Packet packet2 = new Packet(0xA102, true);
+												packet2.WriteUInt8(b);
+												packet2.WriteUInt32(value);
+												packet2.WriteAscii(Gateway.realIP);
+												packet2.WriteUInt16(Gateway.fakeAgentPort);
+												this.gw_local_security.Send(packet2);
+												Thread.Sleep(2000);
+												continue;
+											}
+										}
+									break;
+									case Utility.SilkroadLocale.TRSRO:
+										if (packet.Opcode == 0xA10A)
+										{
+											byte b = packet.ReadUInt8();
+											if (b == 1)
+											{
+												uint value = packet.ReadUInt32();
+												string text = packet.ReadAscii();
+												uint port = packet.ReadUInt16();
+												byte rnd = packet.ReadUInt8();
+
+												Log.LogMsg("Redirect Client!");
+												Packet packet2 = new Packet(0xA10A, true);
+												packet2.WriteUInt8(b);
+												packet2.WriteUInt32(value);
+												packet2.WriteAscii(Gateway.realIP);
+												packet2.WriteUInt16(Gateway.fakeAgentPort);
+												packet2.WriteUInt8(rnd);
+												this.gw_local_security.Send(packet2);
+												Thread.Sleep(2000);
+												continue;
+											}
+										}
+										break;
+								}
 								this.gw_local_security.Send(packet); 
 							}
 						}
@@ -168,6 +200,14 @@ namespace Gateways
 						{
 							byte[] bytes = packet.GetBytes();
 
+							//Log.LogMsg("GW [C->S] " + packet.Opcode.ToString("X4") + " " + bytes.Length + " " + packet.Encrypted.ToString() + Environment.NewLine + Utility.HexDump(bytes) + Environment.NewLine);
+
+							if (packet.Opcode == 0x6100)
+                            {
+								this.locale = (Utility.SilkroadLocale)packet.ReadUInt8();
+								Program.main.localeSave = this.locale;
+							}							
+
                             if(this.clientlessToClient)
                             {
                                 #region Fake Client
@@ -209,10 +249,21 @@ namespace Gateways
                                 #region 0x6100
                                 if (packet.Opcode == 0x6100)
                                 {
-                                    Packet response = new Packet(0xA100, false, true);
-                                    response.WriteUInt8(0x01);
-                                    response.Lock();
-                                    gw_local_security.Send(response);
+									if (this.locale == Utility.SilkroadLocale.VSRO)
+									{
+										Packet response = new Packet(0xA100, false, true);
+										response.WriteUInt8(0x01);
+										response.Lock();
+										gw_local_security.Send(response);
+									}
+									else if (this.locale == Utility.SilkroadLocale.TRSRO)
+                                    {
+										Packet response = new Packet(0xA100, false, true);
+										response.WriteUInt8(0x01);
+										response.WriteUInt8(0x00);
+										response.Lock();
+										gw_local_security.Send(response);
+									}
                                 }
                                 #endregion
 
@@ -220,27 +271,55 @@ namespace Gateways
 
                                 if (packet.Opcode == 0x6101)
                                 {
-                                    Packet response = new Packet(0xA102);
-                                    response.WriteUInt8(0x01); //Sucess
-                                    response.WriteUInt32(uint.MaxValue); //SessionID
-                                    response.WriteAscii(Gateway.realIP); //AgentIP
-                                    response.WriteUInt16(Gateway.fakeAgentPort);
-                                    response.Lock();
+									if (this.locale == Utility.SilkroadLocale.VSRO)
+									{
+										Packet response = new Packet(0xA102);
+										response.WriteUInt8(0x01); //Sucess
+										response.WriteUInt32(uint.MaxValue); //SessionID
+										response.WriteAscii(Gateway.realIP); //AgentIP
+										response.WriteUInt16(Gateway.fakeAgentPort);
+										response.Lock();
 
-                                    gw_local_security.Send(response);
+										gw_local_security.Send(response);
+									}
+									else if (this.locale == Utility.SilkroadLocale.TRSRO)
+                                    {
+										Packet response = new Packet(0xA10A);
+										response.WriteUInt8(0x01); //Sucess
+										response.WriteUInt32(uint.MaxValue); //SessionID
+										response.WriteAscii(Gateway.realIP); //AgentIP
+										response.WriteUInt16(Gateway.fakeAgentPort);
+										response.WriteUInt8(1);
+										response.Lock();
+
+										gw_local_security.Send(response);
+									}
                                 }
 
-                                #endregion
+								#endregion
 
-                                #region 0x6103
+								#region 0x6103
 
-                                if (packet.Opcode == 0x6103)
-                                {
-                                    Packet response = new Packet(0xA103);
-                                    response.WriteUInt8(0x01); //Sucess
-                                    response.Lock();
+								if (packet.Opcode == 0x6103)
+								{
+									if (this.locale == Utility.SilkroadLocale.VSRO)
+									{
+										Packet response = new Packet(0xA103);
+										response.WriteUInt8(0x01); //Sucess
+										response.Lock();
 
-                                    gw_local_security.Send(response);
+										gw_local_security.Send(response);
+									}
+									else if (this.locale == Utility.SilkroadLocale.TRSRO)
+                                    {
+										Packet response = new Packet(0xA103);
+										response.WriteUInt8(0x01); //Sucess
+										response.WriteUInt8(0x03);
+										response.WriteUInt8(0x00);
+										response.Lock();
+
+										gw_local_security.Send(response);
+									}
                                 }
 
                                 #endregion
@@ -326,8 +405,8 @@ namespace Gateways
 			try
 			{
                 Log.LogMsg("IP Disconnected: " + this.ip);
-                this.gw_remote_client.Close();
-                this.gw_local_client.Close();
+            //    this.gw_remote_client.Close();
+            //    this.gw_local_client.Close();
 				this.local = false;
 				this.remote = false;
                 this.ip = "";

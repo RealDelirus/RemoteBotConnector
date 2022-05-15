@@ -10,6 +10,12 @@ namespace SilkroadSecurityApi
             return HexDump(buffer, 0, buffer.Length);
         }
 
+        public enum SilkroadLocale : int
+        {
+            VSRO = 22,
+            TRSRO = 56
+        }
+
         public static string HexDump(byte[] buffer, int offset, int count)
         {
             const int bytesPerLine = 16;

@@ -141,6 +141,8 @@ namespace Agents
                         {
                             byte[] bytes = packet.GetBytes();
 
+                            //Log.LogMsg("AG [S->C] " + packet.Opcode.ToString("X4") + " " + bytes.Length + " " + packet.Encrypted.ToString() + Environment.NewLine + Utility.HexDump(bytes) + Environment.NewLine);
+
                             #region FakeClient
                             if (this.clientlessToClient)
                             {
@@ -163,7 +165,7 @@ namespace Agents
                                         this.m_ClientWaitingForData = false;
 
                                         //!!! CrossThreading!!!
-                                        Program.main.MainLog("Waiting for Teleport to finish");
+                                        Program.main.MainLog("Waiting to finish teleport");
                                     }
                                 }
 
@@ -176,7 +178,7 @@ namespace Agents
                                         this.m_ClientWatingForFinish = false;
 
                                         //!!! CrossThreading!!!
-                                        Program.main.MainLog("Sucessfully switched");
+                                        Program.main.MainLog("Successfully switched");
                                     }
                                 }
                             }
@@ -288,6 +290,9 @@ namespace Agents
                         {
                             #region Packets
                             byte[] bytes = packet.GetBytes();
+
+                            //Log.LogMsg("AG [C->S] " + packet.Opcode.ToString("X4") + " " + bytes.Length + " " + packet.Encrypted.ToString() + Environment.NewLine + Utility.HexDump(bytes) + Environment.NewLine);
+
                             int pLength = bytes.Length;
 
                             if (this.clientlessToClient && packet.Opcode == 0x7007)
@@ -302,7 +307,7 @@ namespace Agents
                                     this.m_ClientWaitingForData = true;
                                     this.currentSwitchActive = false;
 
-                                    Program.main.MainLog("Please use a ReturnScroll to finish Clientless->Client");
+                                    Program.main.MainLog("Use ReturnScroll to finish Clientless->Client");
                                 }
                             }
 
@@ -347,29 +352,31 @@ namespace Agents
                                     response.WriteUInt8(0);
                                     response.Lock();
                                     this.ag_local_security.Send(response);
+                                    if (Program.main.localeSave == Utility.SilkroadLocale.VSRO)
+                                    {
+                                        response = new Packet(0x2005, false, true);
+                                        response.WriteUInt8(0x01);
+                                        response.WriteUInt8(0x00);
+                                        response.WriteUInt8(0x01);
+                                        response.WriteUInt8(0xBA);
+                                        response.WriteUInt8(0x02);
+                                        response.WriteUInt8(0x05);
+                                        response.WriteUInt8(0x00);
+                                        response.WriteUInt8(0x00);
+                                        response.WriteUInt8(0x00);
+                                        response.WriteUInt8(0x02);
+                                        response.Lock();
+                                        this.ag_local_security.Send(response);
 
-                                    response = new Packet(0x2005, false, true);
-                                    response.WriteUInt8(0x01);
-                                    response.WriteUInt8(0x00);
-                                    response.WriteUInt8(0x01);
-                                    response.WriteUInt8(0xBA);
-                                    response.WriteUInt8(0x02);
-                                    response.WriteUInt8(0x05);
-                                    response.WriteUInt8(0x00);
-                                    response.WriteUInt8(0x00);
-                                    response.WriteUInt8(0x00);
-                                    response.WriteUInt8(0x02);
-                                    response.Lock();
-                                    this.ag_local_security.Send(response);
-
-                                    response = new Packet(0x6005, false, true);
-                                    response.WriteUInt8(0x03);
-                                    response.WriteUInt8(0x00);
-                                    response.WriteUInt8(0x02);
-                                    response.WriteUInt8(0x00);
-                                    response.WriteUInt8(0x02);
-                                    response.Lock();
-                                    this.ag_local_security.Send(response);
+                                        response = new Packet(0x6005, false, true);
+                                        response.WriteUInt8(0x03);
+                                        response.WriteUInt8(0x00);
+                                        response.WriteUInt8(0x02);
+                                        response.WriteUInt8(0x00);
+                                        response.WriteUInt8(0x02);
+                                        response.Lock();
+                                        this.ag_local_security.Send(response);
+                                    }
                                 }
                             }
                             else if(!this.clientlessToClient || this.currentSwitchActive)
@@ -381,9 +388,20 @@ namespace Agents
                                         if (!this._a103Sent)
                                         {
                                             this._a103Sent = true;
-                                            Packet p = new Packet(0xA103, true);
-                                            p.WriteUInt8(1);
-                                            this.ag_local_security.Send(p);
+                                            if (Program.main.localeSave == Utility.SilkroadLocale.VSRO)
+                                            {
+                                                Packet p = new Packet(0xA103, true);
+                                                p.WriteUInt8(1);
+                                                this.ag_local_security.Send(p);
+                                            }
+                                            else if (Program.main.localeSave == Utility.SilkroadLocale.TRSRO)
+                                            {
+                                                Packet p = new Packet(0xA103, true);
+                                                p.WriteUInt8(1);
+                                                p.WriteUInt8(3);
+                                                p.WriteUInt8(0);
+                                                this.ag_local_security.Send(p);
+                                            }
                                         }
                                     }
                                 }

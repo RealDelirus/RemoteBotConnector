@@ -70,6 +70,12 @@
     <Compile Include="Gateway\Log.cs" />
     <Compile Include="Gateway\Gateway.cs" />
     <Compile Include="IniFile.cs" />
+    <Compile Include="NetworkSettings.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="NetworkSettings.Designer.cs">
+      <DependentUpon>NetworkSettings.cs</DependentUpon>
+    </Compile>
     <Compile Include="Packet\Blowfish.cs" />
     <Compile Include="Packet\Packet.cs" />
     <Compile Include="Packet\PacketReader.cs" />
@@ -81,6 +87,9 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="Form1.resx">
       <DependentUpon>Form1.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="NetworkSettings.resx">
+      <DependentUpon>NetworkSettings.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>

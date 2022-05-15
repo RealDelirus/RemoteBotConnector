@@ -11,6 +11,7 @@ using System.Management;
 using System.Net;
 using System.Diagnostics;
 using System.IO;
+using static SilkroadSecurityApi.Utility;
 
 namespace RemoteBotConnector
 {
@@ -18,6 +19,7 @@ namespace RemoteBotConnector
     {
 
         public int portSave = 0;
+        public SilkroadLocale localeSave = SilkroadLocale.VSRO;
         public bool mBot = false;
         public  Form1()
         {
@@ -33,6 +35,12 @@ namespace RemoteBotConnector
 
         private void Form1_Load(object sender, EventArgs e)
         {
+            if (!File.Exists("Gateway.txt") || !File.Exists("Agent.txt"))
+            {
+                NetworkSettings ns = new NetworkSettings();
+                ns.ShowDialog();
+            }
+
             MainLog("RemoteBotConnector started");
             Gateway.StartGateway();
             Agent.StartAgent(); 

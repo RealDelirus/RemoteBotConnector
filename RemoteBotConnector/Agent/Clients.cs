@@ -311,6 +311,16 @@ namespace Agents
                                 }
                             }
 
+                            if (packet.Opcode == 0x6103 && this.clientlessToClient && Program.main.localeSave == Utility.SilkroadLocale.TRSRO)
+                            {
+                                Packet p = new Packet(0xA103, true);
+                                p.WriteUInt8(1);
+                                p.WriteUInt8(3);
+                                p.WriteUInt8(0);
+                                this.ag_local_security.Send(p);
+                                continue;
+                            }
+
                             if (packet.Opcode == 0x5000 || packet.Opcode == 0x9000 || packet.Opcode == 0x2001)
                             {
                                 if (!this.ag_remote_client.Connected)

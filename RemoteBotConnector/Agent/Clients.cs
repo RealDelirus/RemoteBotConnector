@@ -31,6 +31,7 @@ namespace Agents
         private bool currentSwitchActive = true;
         private readonly object login = new object();
         private bool agentIsConnected = false;
+        private Utility.SilkroadLocale locale = Utility.SilkroadLocale.VSRO;
 
         private Thread localThread, remoteThread;
 
@@ -49,6 +50,7 @@ namespace Agents
                 this.ag_remote_client = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 this.ip = IPAddress.Parse(((IPEndPoint)this.ag_local_client.RemoteEndPoint).Address.ToString()).ToString();
                 this.clientlessToClient = Program.main.checkBox_clientlessToClient.Checked;
+                this.locale = (Utility.SilkroadLocale)Program.main.localeSave;
                 Log.LogMsg("Agent Socket Success IP:" + this.ip);
                 localThread = new Thread(new ThreadStart(AgentLocalThread));
                 localThread.Start();
@@ -321,6 +323,12 @@ namespace Agents
                                 continue;
                             }
 
+                            if(packet.Opcode == 0x7005)
+                            {
+                                //Prevent logout
+                                continue;
+                            }
+
                             if (packet.Opcode == 0x5000 || packet.Opcode == 0x9000 || packet.Opcode == 0x2001)
                             {
                                 if (!this.ag_remote_client.Connected)
@@ -404,7 +412,7 @@ namespace Agents
                                                 p.WriteUInt8(1);
                                                 this.ag_local_security.Send(p);
                                             }
-                                            else if (Program.main.localeSave == Utility.SilkroadLocale.TRSRO)
+                                            else if (Program.main.localeSave == Utility.SilkroadLocale.TRSRO || Program.main.localeSave == Utility.SilkroadLocale.ISRO)
                                             {
                                                 Packet p = new Packet(0xA103, true);
                                                 p.WriteUInt8(1);
@@ -415,8 +423,8 @@ namespace Agents
                                         }
                                     }
                                 }
-
-                                this.ag_remote_security.Send(packet);
+                                if(!this.clientlessToClient)
+                                    this.ag_remote_security.Send(packet);
                             }
                             #endregion
                         }

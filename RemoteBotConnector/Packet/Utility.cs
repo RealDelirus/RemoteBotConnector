@@ -12,6 +12,7 @@ namespace SilkroadSecurityApi
 
         public enum SilkroadLocale : int
         {
+            ISRO = 18,
             VSRO = 22,
             TRSRO = 56
         }

@@ -135,6 +135,30 @@ namespace Gateways
 											}
 										}
 										break;
+									case Utility.SilkroadLocale.ISRO:
+										if (packet.Opcode == 0xA10A)
+										{
+											byte b = packet.ReadUInt8();
+											if (b == 1)
+											{
+												uint value = packet.ReadUInt32();
+												string text = packet.ReadAscii();
+												uint port = packet.ReadUInt16();
+												byte rnd = packet.ReadUInt8();
+
+												Log.LogMsg("Redirect Client!");
+												Packet packet2 = new Packet(0xA10A, true);
+												packet2.WriteUInt8(b);
+												packet2.WriteUInt32(value);
+												packet2.WriteAscii(Gateway.realIP);
+												packet2.WriteUInt16(Gateway.fakeAgentPort);
+												packet2.WriteUInt8(rnd);
+												this.gw_local_security.Send(packet2);
+												Thread.Sleep(2000);
+												continue;
+											}
+										}
+										break;
 								}
 								this.gw_local_security.Send(packet); 
 							}
@@ -221,28 +245,31 @@ namespace Gateways
                                     response.Lock();
                                     this.gw_local_security.Send(response);
 
-                                    response = new Packet(0x2005, false, true);
-                                    response.WriteUInt8(0x01);
-                                    response.WriteUInt8(0x00);
-                                    response.WriteUInt8(0x01);
-                                    response.WriteUInt8(0xBA);
-                                    response.WriteUInt8(0x02);
-                                    response.WriteUInt8(0x05);
-                                    response.WriteUInt8(0x00);
-                                    response.WriteUInt8(0x00);
-                                    response.WriteUInt8(0x00);
-                                    response.WriteUInt8(0x02);
-                                    response.Lock();
-                                    gw_local_security.Send(response);
+									if (Program.main.localeSave != Utility.SilkroadLocale.ISRO)
+									{
+										response = new Packet(0x2005, false, true);
+										response.WriteUInt8(0x01);
+										response.WriteUInt8(0x00);
+										response.WriteUInt8(0x01);
+										response.WriteUInt8(0xBA);
+										response.WriteUInt8(0x02);
+										response.WriteUInt8(0x05);
+										response.WriteUInt8(0x00);
+										response.WriteUInt8(0x00);
+										response.WriteUInt8(0x00);
+										response.WriteUInt8(0x02);
+										response.Lock();
+										gw_local_security.Send(response);
 
-                                    response = new Packet(0x6005, false, true);
-                                    response.WriteUInt8(0x03);
-                                    response.WriteUInt8(0x00);
-                                    response.WriteUInt8(0x02);
-                                    response.WriteUInt8(0x00);
-                                    response.WriteUInt8(0x02);
-                                    response.Lock();
-                                    gw_local_security.Send(response);
+										response = new Packet(0x6005, false, true);
+										response.WriteUInt8(0x03);
+										response.WriteUInt8(0x00);
+										response.WriteUInt8(0x02);
+										response.WriteUInt8(0x00);
+										response.WriteUInt8(0x02);
+										response.Lock();
+										gw_local_security.Send(response);
+									}
                                 }
                                 #endregion
 
@@ -256,7 +283,7 @@ namespace Gateways
 										response.Lock();
 										gw_local_security.Send(response);
 									}
-									else if (this.locale == Utility.SilkroadLocale.TRSRO)
+									else if (this.locale == Utility.SilkroadLocale.TRSRO || this.locale == Utility.SilkroadLocale.ISRO)
                                     {
 										Packet response = new Packet(0xA100, false, true);
 										response.WriteUInt8(0x01);
@@ -294,6 +321,18 @@ namespace Gateways
 
 										gw_local_security.Send(response);
 									}
+									else if (this.locale == Utility.SilkroadLocale.ISRO)
+                                    {
+										Packet response = new Packet(0xA10A);
+										response.WriteUInt8(0x01); //Sucess
+										response.WriteUInt32(uint.MaxValue); //SessionID
+										response.WriteAscii(Gateway.realIP); //AgentIP
+										response.WriteUInt16(Gateway.fakeAgentPort);
+										response.WriteUInt8(1);
+										response.Lock();
+
+										gw_local_security.Send(response);
+									}
                                 }
 
 								#endregion
@@ -310,7 +349,7 @@ namespace Gateways
 
 										gw_local_security.Send(response);
 									}
-									else if (this.locale == Utility.SilkroadLocale.TRSRO)
+									else if (this.locale == Utility.SilkroadLocale.TRSRO || this.locale == Utility.SilkroadLocale.ISRO)
                                     {
 										Packet response = new Packet(0xA103);
 										response.WriteUInt8(0x01); //Sucess
